@@ -5,13 +5,16 @@ FastAPI application entry: mounts routers and exposes process health.
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse
 from starlette.staticfiles import StaticFiles
 
 from app.api.routes import analysis, chat, fleet, frames, results
 from app.core.config import Settings, get_settings
+
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+_STATIC_ROOT = _BACKEND_ROOT / "static"
 
 _settings = get_settings()
 
@@ -42,13 +45,38 @@ def health(settings: Annotated[Settings, Depends(get_settings)]):
     }
 
 
+def _spa_icon_response() -> FileResponse:
+    """Serve SPA favicon assets; avoids Starlette StaticFiles returning JSON 404 on browser probes."""
+    pairs = (
+        (_STATIC_ROOT / "favicon.svg", "image/svg+xml"),
+        (_STATIC_ROOT / "favicon.ico", None),
+    )
+    for path, mime in pairs:
+        if path.is_file():
+            if mime:
+                return FileResponse(path, media_type=mime)
+            return FileResponse(path)
+    raise HTTPException(
+        status_code=503,
+        detail="SPA static build has no favicon.svg or favicon.ico (rebuild frontend).",
+    )
+
+
 @app.get("/favicon.ico")
 def favicon_ico():
-    """Avoid 404 JSON from StaticFiles; browsers request /favicon.ico even when index.html links to .svg."""
-    return RedirectResponse(url="/favicon.svg", status_code=307)
+    return _spa_icon_response()
+
+
+@app.get("/apple-touch-icon.png")
+def apple_touch_icon():
+    return _spa_icon_response()
+
+
+@app.get("/apple-touch-icon-precomposed.png")
+def apple_touch_icon_precomposed():
+    return _spa_icon_response()
 
 
 # Production Docker image copies Vite output to backend/static (see repo Dockerfile).
-_spa_dir = Path(__file__).resolve().parent.parent / "static"
-if (_spa_dir / "index.html").is_file():
-    app.mount("/", StaticFiles(directory=str(_spa_dir), html=True), name="spa")
+if (_STATIC_ROOT / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=str(_STATIC_ROOT), html=True), name="spa")

@@ -126,8 +126,7 @@ export default function RemoteCapture() {
     let cancelled = false;
     setLoadingZones(true);
     setZonesError(null);
-    const enc = encodeURIComponent(activeTail);
-    Promise.all([fetchCamera(enc), fetchAircraft(enc)])
+    Promise.all([fetchCamera(activeTail), fetchAircraft(activeTail)])
       .then(([cam, ac]) => {
         if (cancelled) return;
         setZones(Array.isArray(cam?.zones) ? cam.zones : []);
@@ -165,8 +164,7 @@ export default function RemoteCapture() {
 
   const refreshAircraftDetail = useCallback(() => {
     if (!activeTail) return;
-    const enc = encodeURIComponent(activeTail);
-    fetchAircraft(enc)
+    fetchAircraft(activeTail)
       .then((ac) => setAcDetail(ac && ac.tailNumber ? ac : null))
       .catch(() => {});
   }, [activeTail]);
@@ -180,8 +178,7 @@ export default function RemoteCapture() {
     let cancelled = false;
     setInspLoading(true);
     setInspError(null);
-    const enc = encodeURIComponent(activeTail);
-    fetchInspections(enc)
+    fetchInspections(activeTail)
       .then((data) => {
         if (!cancelled) setInspections(Array.isArray(data?.checklist) ? data.checklist : []);
       })
@@ -202,10 +199,9 @@ export default function RemoteCapture() {
       inspToggleBusy.current = true;
       setTogglingInspId(itemId);
       setInspError(null);
-      const enc = encodeURIComponent(activeTail);
       try {
         await toggleInspectionItem(activeTail, itemId, null);
-        const data = await fetchInspections(enc);
+        const data = await fetchInspections(activeTail);
         setInspections(Array.isArray(data?.checklist) ? data.checklist : []);
       } catch (e) {
         setInspError(e?.message || String(e));
