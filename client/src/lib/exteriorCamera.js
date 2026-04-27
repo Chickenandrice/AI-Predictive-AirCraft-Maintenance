@@ -85,6 +85,19 @@ export function buildAircraftContextFromParams(params) {
   return parts.join(' · ');
 }
 
+/**
+ * When the page URL has no explicit port, Vite dev is assumed to be 5173 on localhost;
+ * for a public host (e.g. Railway HTTPS) the default is to omit the port (443).
+ */
+export function defaultRemoteCapturePort() {
+  if (typeof window === 'undefined') return '';
+  const explicit = window.location.port;
+  if (explicit) return explicit;
+  const h = window.location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1') return '5173';
+  return '';
+}
+
 export function buildRemoteCaptureUrl({ host, port, protocol, params }) {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {

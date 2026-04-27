@@ -3,6 +3,7 @@ import { analyzeAllPendingExterior, analyzeExteriorImage, deleteExteriorZonePhot
 import {
   buildAircraftContext,
   buildRemoteCaptureUrl,
+  defaultRemoteCapturePort,
   cameraErrorMessage,
   cameraUnavailableMessage,
   openCameraStream,
@@ -37,9 +38,7 @@ export default function CameraPanel({ cameraData, aircraft, onExteriorAnalyzed }
     const h = window.location.hostname;
     return h === 'localhost' || h === '127.0.0.1' ? '' : h;
   });
-  const [remotePort, setRemotePort] = useState(() =>
-    typeof window !== 'undefined' && window.location.port ? window.location.port : '5173',
-  );
+  const [remotePort, setRemotePort] = useState(() => defaultRemoteCapturePort());
   const [remoteCopied, setRemoteCopied] = useState(false);
   const [removingZonePhotoId, setRemovingZonePhotoId] = useState(null);
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
@@ -284,7 +283,7 @@ export default function CameraPanel({ cameraData, aircraft, onExteriorAnalyzed }
     typeof window !== 'undefined' && remoteHost.trim()
       ? buildRemoteCaptureUrl({
           host: remoteHost.trim(),
-          port: (remotePort || window.location.port || '5173').replace(/^:/, ''),
+          port: (remotePort.trim() || defaultRemoteCapturePort()).replace(/^:/, ''),
           protocol: window.location.protocol,
           params: remoteParams,
         })
@@ -385,7 +384,7 @@ export default function CameraPanel({ cameraData, aircraft, onExteriorAnalyzed }
           <input
             className="remote-camera-input"
             type="text"
-            placeholder="5173"
+            placeholder={isLocalhost ? '5173' : 'leave empty for default (443)'}
             value={remotePort}
             onChange={(e) => setRemotePort(e.target.value)}
           />
