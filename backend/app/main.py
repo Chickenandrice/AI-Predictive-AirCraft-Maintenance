@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.api.routes import analysis, chat, fleet, frames, results
 from app.core.config import Settings, get_settings
@@ -46,6 +46,34 @@ def health(settings: Annotated[Settings, Depends(get_settings)]):
     }
 
 
+def _safe_static_file(relative: str) -> Path | None:
+    """Resolve a file under static/; reject traversal outside that directory."""
+    rel = (relative or "").replace("\\", "/").strip("/")
+    if not rel or any(p == ".." for p in Path(rel).parts):
+        return None
+    base = _STATIC_ROOT.resolve()
+    target = (base / rel).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError:
+        return None
+    return target if target.is_file() else None
+
+
 # Production Docker image copies Vite output to backend/static (see repo Dockerfile).
-if (_STATIC_ROOT / "index.html").is_file():
-    app.mount("/", StaticFiles(directory=str(_STATIC_ROOT), html=True), name="spa")
+# Starlette StaticFiles(html=True) does NOT fall back to index.html for paths like
+# /remote-capture (only for "/" and directory URLs), so we serve files when present
+# and otherwise return index.html for React Router.
+_index = _STATIC_ROOT / "index.html"
+if _index.is_file():
+
+    @app.get("/")
+    def spa_root():
+        return FileResponse(_index)
+
+    @app.get("/{full_path:path}")
+    def spa_fallback(full_path: str):
+        existing = _safe_static_file(full_path)
+        if existing is not None:
+            return FileResponse(existing)
+        return FileResponse(_index)
