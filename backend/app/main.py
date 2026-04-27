@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from starlette.staticfiles import StaticFiles
 
 from app.api.routes import analysis, chat, fleet, frames, results
@@ -39,6 +40,12 @@ def health(settings: Annotated[Settings, Depends(get_settings)]):
         "gemini_vision_model": settings.gemini_vision_model,
         "gemini_api_configured": bool((settings.gemini_api_key or "").strip()),
     }
+
+
+@app.get("/favicon.ico")
+def favicon_ico():
+    """Avoid 404 JSON from StaticFiles; browsers request /favicon.ico even when index.html links to .svg."""
+    return RedirectResponse(url="/favicon.svg", status_code=307)
 
 
 # Production Docker image copies Vite output to backend/static (see repo Dockerfile).
